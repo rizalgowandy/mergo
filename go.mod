@@ -1,5 +1,3 @@
-module github.com/imdario/mergo
+module dario.cat/mergo
 
-go 1.13
-
-require gopkg.in/yaml.v3 v3.0.0
+go 1.18

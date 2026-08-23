@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 const issue138configuration string = `
@@ -24,7 +24,7 @@ func TestIssue138(t *testing.T) {
 	foo := make(map[string]interface{})
 	// encoding/json unmarshals numbers as float64
 	// https://golang.org/pkg/encoding/json/#Unmarshal
-	json.Unmarshal([]byte(issue138configuration), &foo)
+	_ = json.Unmarshal([]byte(issue138configuration), &foo)
 
 	err := mergo.Map(&config{}, foo)
 	if err == nil {

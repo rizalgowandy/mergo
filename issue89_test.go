@@ -3,7 +3,7 @@ package mergo_test
 import (
 	"testing"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 func TestIssue89Boolean(t *testing.T) {
@@ -33,20 +33,16 @@ func TestIssue89MergeWithEmptyValue(t *testing.T) {
 		t.Error(err)
 	}
 	testCases := []struct {
-		key      string
 		expected interface{}
+		key      string
 	}{
 		{
-			"A",
-			3,
-		},
-		{
-			"B",
 			"",
+			"B",
 		},
 		{
-			"C",
 			false,
+			"C",
 		},
 	}
 	for _, tC := range testCases {

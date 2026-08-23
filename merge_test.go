@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 type transformer struct {
@@ -19,13 +19,13 @@ func (s *transformer) Transformer(t reflect.Type) func(dst, src reflect.Value) e
 }
 
 type foo struct {
-	s   string
 	Bar *bar
+	s   string
 }
 
 type bar struct {
-	i int
 	s map[string]string
+	i int
 }
 
 func TestMergeWithTransformerNilStruct(t *testing.T) {
@@ -64,7 +64,7 @@ func TestMergeNonPointer(t *testing.T) {
 			"a": "1",
 		},
 	}
-	want := mergo.ErrNonPointerAgument
+	want := mergo.ErrNonPointerArgument
 
 	if got := mergo.Merge(dst, src); got != want {
 		t.Errorf("want: %s, got: %s", want, got)
@@ -81,7 +81,7 @@ func TestMapNonPointer(t *testing.T) {
 			},
 		},
 	}
-	want := mergo.ErrNonPointerAgument
+	want := mergo.ErrNonPointerArgument
 	if got := mergo.Merge(dst, src); got != want {
 		t.Errorf("want: %s, got: %s", want, got)
 	}

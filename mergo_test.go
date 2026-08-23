@@ -6,14 +6,14 @@
 package mergo_test
 
 import (
-	"io/ioutil"
+	"encoding/json"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/imdario/mergo"
-	"gopkg.in/yaml.v3"
+	"dario.cat/mergo"
 )
 
 type simpleTest struct {
@@ -21,9 +21,9 @@ type simpleTest struct {
 }
 
 type complexTest struct {
+	ID string
 	St simpleTest
 	sz int
-	ID string
 }
 
 type mapTest struct {
@@ -50,8 +50,8 @@ type sliceTest struct {
 
 func TestKb(t *testing.T) {
 	type testStruct struct {
-		Name     string
 		KeyValue map[string]interface{}
+		Name     string
 	}
 
 	akv := make(map[string]interface{})
@@ -86,9 +86,22 @@ func TestKb(t *testing.T) {
 }
 
 func TestNil(t *testing.T) {
-	if err := mergo.Merge(nil, nil); err != mergo.ErrNilArguments {
-		t.Fail()
-	}
+	t.Run("both nil", func(t *testing.T) {
+		if err := mergo.Merge(nil, nil); err != mergo.ErrNilArguments {
+			t.Fail()
+		}
+	})
+	t.Run("dst nil", func(t *testing.T) {
+		if err := mergo.Merge(nil, struct{}{}); err != mergo.ErrNilArguments {
+			t.Fail()
+		}
+	})
+	t.Run("src nil", func(t *testing.T) {
+		dst := struct{}{}
+		if err := mergo.Merge(&dst, nil); err != mergo.ErrNilArguments {
+			t.Error(err)
+		}
+	})
 }
 
 func TestDifferentTypes(t *testing.T) {
@@ -116,7 +129,7 @@ func TestSimpleStruct(t *testing.T) {
 func TestComplexStruct(t *testing.T) {
 	a := complexTest{}
 	a.ID = "athing"
-	b := complexTest{simpleTest{42}, 1, "bthing"}
+	b := complexTest{"bthing", simpleTest{42}, 1}
 	if err := mergo.Merge(&a, b); err != nil {
 		t.FailNow()
 	}
@@ -132,10 +145,10 @@ func TestComplexStruct(t *testing.T) {
 }
 
 func TestComplexStructWithOverwrite(t *testing.T) {
-	a := complexTest{simpleTest{1}, 1, "do-not-overwrite-with-empty-value"}
-	b := complexTest{simpleTest{42}, 2, ""}
+	a := complexTest{"do-not-overwrite-with-empty-value", simpleTest{1}, 1}
+	b := complexTest{"", simpleTest{42}, 2}
 
-	expect := complexTest{simpleTest{42}, 1, "do-not-overwrite-with-empty-value"}
+	expect := complexTest{"do-not-overwrite-with-empty-value", simpleTest{42}, 1}
 	if err := mergo.MergeWithOverwrite(&a, b); err != nil {
 		t.FailNow()
 	}
@@ -369,7 +382,7 @@ func TestMapsWithOverwrite(t *testing.T) {
 	}
 
 	if err := mergo.MergeWithOverwrite(&m, n); err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
@@ -399,7 +412,7 @@ func TestMapWithEmbeddedStructPointer(t *testing.T) {
 	}
 
 	if err := mergo.Merge(&m, n, mergo.WithOverride); err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
@@ -417,22 +430,22 @@ func TestMergeUsingStructAndMap(t *testing.T) {
 		Msg2 string
 	}
 	type params struct {
-		Name  string
 		Multi *multiPtr
 		Final *final
+		Name  string
 	}
 	type config struct {
+		Params *params
 		Foo    string
 		Bar    string
-		Params *params
 	}
 
 	cases := []struct {
-		name      string
-		overwrite bool
 		changes   *config
 		target    *config
 		output    *config
+		name      string
+		overwrite bool
 	}{
 		{
 			name:      "Should overwrite values in target for non-nil values in source",
@@ -559,7 +572,7 @@ func TestMaps(t *testing.T) {
 	}
 
 	if err := mergo.Merge(&m, n); err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
@@ -592,7 +605,7 @@ func TestMapsWithNilPointer(t *testing.T) {
 	}
 
 	if err := mergo.Merge(&m, n, mergo.WithOverride); err != nil {
-		t.Errorf(err.Error())
+		t.Error(err.Error())
 	}
 
 	if !reflect.DeepEqual(m, expect) {
@@ -600,9 +613,9 @@ func TestMapsWithNilPointer(t *testing.T) {
 	}
 }
 
-func TestYAMLMaps(t *testing.T) {
-	thing := loadYAML("testdata/thing.yml")
-	license := loadYAML("testdata/license.yml")
+func TestJSONMaps(t *testing.T) {
+	thing := loadFixture("testdata/thing.json")
+	license := loadFixture("testdata/license.json")
 	ft := thing["fields"].(map[string]interface{})
 	fl := license["fields"].(map[string]interface{})
 	// license has one extra field (site) and another already existing in thing (author) that Mergo won't override.
@@ -721,13 +734,13 @@ func TestIfcMapWithOverwrite(t *testing.T) {
 }
 
 type pointerMapTest struct {
+	B      *simpleTest
 	A      int
 	hidden int
-	B      *simpleTest
 }
 
 func TestBackAndForth(t *testing.T) {
-	pt := pointerMapTest{42, 1, &simpleTest{66}}
+	pt := pointerMapTest{&simpleTest{66}, 42, 1}
 	m := make(map[string]interface{})
 	if err := mergo.Map(&m, pt); err != nil {
 		t.FailNow()
@@ -763,8 +776,8 @@ func TestBackAndForth(t *testing.T) {
 
 func TestEmbeddedPointerUnpacking(t *testing.T) {
 	tests := []struct{ input pointerMapTest }{
-		{pointerMapTest{42, 1, nil}},
-		{pointerMapTest{42, 1, &simpleTest{66}}},
+		{pointerMapTest{nil, 42, 1}},
+		{pointerMapTest{&simpleTest{66}, 42, 1}},
 	}
 	newValue := 77
 	m := map[string]interface{}{
@@ -844,10 +857,10 @@ func TestNestedPtrValueInMap(t *testing.T) {
 	}
 }
 
-func loadYAML(path string) (m map[string]interface{}) {
+func loadFixture(path string) (m map[string]interface{}) {
 	m = make(map[string]interface{})
-	raw, _ := ioutil.ReadFile(path)
-	_ = yaml.Unmarshal(raw, &m)
+	raw, _ := os.ReadFile(path)
+	_ = json.Unmarshal(raw, &m)
 	return
 }
 
@@ -871,7 +884,9 @@ func TestUnexportedProperty(t *testing.T) {
 			t.Errorf("Should not have panicked")
 		}
 	}()
-	mergo.Merge(&a, b)
+	if err := mergo.Merge(&a, b); err != nil {
+		t.Errorf("Error while merging %s", err)
+	}
 }
 
 type structWithBoolPointer struct {
@@ -900,18 +915,18 @@ func TestBooleanPointer(t *testing.T) {
 func TestMergeMapWithInnerSliceOfDifferentType(t *testing.T) {
 	testCases := []struct {
 		name    string
-		options []func(*mergo.Config)
 		err     string
+		options []func(*mergo.Config)
 	}{
 		{
 			"With override and append slice",
-			[]func(*mergo.Config){mergo.WithOverride, mergo.WithAppendSlice},
 			"cannot append two slices with different type",
+			[]func(*mergo.Config){mergo.WithOverride, mergo.WithAppendSlice},
 		},
 		{
 			"With override and type check",
-			[]func(*mergo.Config){mergo.WithOverride, mergo.WithTypeCheck},
 			"cannot override two slices with different type",
+			[]func(*mergo.Config){mergo.WithOverride, mergo.WithTypeCheck},
 		},
 	}
 	for _, tc := range testCases {
@@ -936,5 +951,37 @@ func TestMergeDifferentSlicesIsNotSupported(t *testing.T) {
 
 	if err := mergo.Merge(&src, &dst, mergo.WithOverride, mergo.WithAppendSlice); err != mergo.ErrDifferentArgumentsTypes {
 		t.Errorf("expected %q, got %q", mergo.ErrNotSupported, err)
+	}
+}
+
+func TestMergeFuncField(t *testing.T) {
+	// isEmptyValue has a reflect.Func case that returns v.IsNil(). It is only
+	// exercised when a struct field has a function type. This test covers both
+	// the nil-func (empty → should be filled) and non-nil-func (non-empty →
+	// should not be overwritten without WithOverride) paths.
+	type withFunc struct {
+		F func() string
+	}
+
+	fn := func() string { return "src" }
+
+	// nil dst.F should be filled from a non-nil src.F
+	dst := withFunc{}
+	src := withFunc{F: fn}
+	if err := mergo.Merge(&dst, src); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dst.F == nil {
+		t.Error("expected dst.F to be set from src, got nil")
+	}
+
+	// non-nil dst.F should not be overwritten without WithOverride
+	existing := func() string { return "dst" }
+	dst2 := withFunc{F: existing}
+	if err := mergo.Merge(&dst2, src); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if dst2.F() != "dst" {
+		t.Errorf("expected dst2.F to remain unchanged, got %q", dst2.F())
 	}
 }

@@ -3,7 +3,7 @@ package mergo_test
 import (
 	"testing"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 type inner struct {
@@ -28,8 +28,8 @@ func TestV039Issue139(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	if dst.inner.A == 1 {
-		t.Errorf("expected %d, got %d", src.inner.A, dst.inner.A)
+	if dst.A == 1 {
+		t.Errorf("expected %d, got %d", src.A, dst.A)
 	}
 }
 
@@ -53,8 +53,8 @@ func TestV039Issue152(t *testing.T) {
 }
 
 type issue146Foo struct {
-	A string
 	B map[string]issue146Bar
+	A string
 }
 
 type issue146Bar struct {

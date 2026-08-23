@@ -3,7 +3,7 @@ package mergo_test
 import (
 	"testing"
 
-	"github.com/imdario/mergo"
+	"dario.cat/mergo"
 )
 
 func TestIssue123(t *testing.T) {
@@ -23,20 +23,20 @@ func TestIssue123(t *testing.T) {
 		t.Fatal(err)
 	}
 	testCases := []struct {
-		key      string
 		expected interface{}
+		key      string
 	}{
 		{
+			nil,
 			"col1",
-			nil,
 		},
 		{
-			"col2",
 			4,
+			"col2",
 		},
 		{
-			"col3",
 			nil,
+			"col3",
 		},
 	}
 	for _, tC := range testCases {
